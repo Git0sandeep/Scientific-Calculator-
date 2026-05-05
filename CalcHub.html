@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CalcHub — All-in-One Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --surface3: #22222f;
+    --border: #2a2a3a;
+    --border2: #363650;
+    --accent: #7c6aff;
+    --accent2: #a855f7;
+    --accent-glow: rgba(124,106,255,0.15);
+    --accent-dim: rgba(124,106,255,0.08);
+    --text: #f0f0ff;
+    --text2: #9090b0;
+    --text3: #5a5a7a;
+    --green: #22d3a0;
+    --amber: #f59e0b;
+    --red: #f43f5e;
+    --blue: #38bdf8;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--display);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Glow orb */
+  body::after {
+    content: '';
+    position: fixed;
+    top: -200px;
+    right: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(124,106,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 20px 60px; }
+
+  /* HEADER */
+  header {
+    padding: 28px 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .logo {
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .logo span { font-weight: 300; opacity: 0.6; }
+
+  .tagline {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* NAV TABS */
+  .nav {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+    background: var(--surface);
+    padding: 6px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+  }
+
+  .nav-btn {
+    flex: 1;
+    min-width: 100px;
+    padding: 10px 14px;
+    background: none;
+    border: none;
+    border-radius: 10px;
+    color: var(--text2);
+    font-family: var(--display);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  .nav-btn:hover { color: var(--text); background: var(--surface2); }
+
+  .nav-btn.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(124,106,255,0.4);
+  }
+
+  /* PANEL */
+  .panel { display: none; animation: fadeIn 0.25s ease; }
+  .panel.active { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* CALCULATOR */
+  .calc-wrap {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  .calc-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  /* Display */
+  .calc-display {
+    padding: 24px 20px 18px;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  .calc-expr {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text3);
+    text-align: right;
+    min-height: 20px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .calc-result {
+    font-family: var(--mono);
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--text);
+    text-align: right;
+    margin-top: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: color 0.15s;
+  }
+
+  .calc-result.error { color: var(--red); font-size: 22px; }
+
+  /* Mode + Deg bar */
+  .calc-meta {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .meta-btn {
+    flex: 1;
+    padding: 9px;
+    background: none;
+    border: none;
+    border-right: 1px solid var(--border);
+    color: var(--text3);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+
+  .meta-btn:last-child { border-right: none; }
+  .meta-btn:hover { color: var(--text2); background: var(--surface2); }
+  .meta-btn.on { color: var(--accent); }
+
+  /* Sci buttons */
+  .sci-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Main buttons */
+  .main-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+  }
+
+  .btn {
+    padding: 15px 8px;
+    background: var(--surface);
+    border: none;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, transform 0.08s;
+    user-select: none;
+  }
+
+  .btn:hover { background: var(--surface3); }
+  .btn:active { transform: scale(0.95); background: var(--surface2); }
+
+  .btn.fn {
+    font-size: 12px;
+    color: var(--text2);
+    background: var(--surface2);
+    font-weight: 500;
+  }
+
+  .btn.fn:hover { background: var(--surface3); color: var(--text); }
+  .btn.op { color: var(--accent); font-size: 18px; font-weight: 700; }
+  .btn.op:hover { background: var(--accent-dim); }
+  .btn.clr { color: var(--red); }
+  .btn.clr:hover { background: rgba(244,63,94,0.08); }
+  .btn.eq {
+    background: var(--accent);
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    box-shadow: 0 4px 24px rgba(124,106,255,0.35);
+  }
+  .btn.eq:hover { background: #6b59ee; }
+  .btn.eq:active { transform: scale(0.96); }
+  .btn.span2 { grid-column: span 2; }
+  .btn.grn { color: var(--green); }
+  .btn.amb { color: var(--amber); }
+
+  /* History panel */
+  .hist-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+
+  .hist-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .hist-head h3 {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .hist-clr {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  .hist-clr:hover { color: var(--red); }
+
+  .hist-list { max-height: 420px; overflow-y: auto; }
+
+  .hist-item {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .hist-item:hover { background: var(--surface2); }
+  .hist-item:last-child { border-bottom: none; }
+
+  .hist-expr {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hist-ans {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--accent);
+    margin-top: 2px;
+  }
+
+  .hist-empty {
+    padding: 32px 16px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text3);
+  }
+
+  /* TOOLS COMMON */
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+  }
+
+  .tool-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    transition: border-color 0.2s;
+  }
+
+  .tool-card:hover { border-color: var(--border2); }
+
+  .tool-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+    letter-spacing: -0.3px;
+  }
+
+  .tool-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    margin-bottom: 22px;
+    letter-spacing: 0.04em;
+  }
+
+  /* Inputs */
+  .field { margin-bottom: 14px; }
+
+  .field label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .field input, .field select {
+    width: 100%;
+    padding: 11px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+    appearance: none;
+  }
+
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+
+  .field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235a5a7a' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+    cursor: pointer;
+  }
+
+  .field select option { background: var(--surface2); }
+
+  .calc-btn {
+    width: 100%;
+    padding: 13px;
+    background: var(--accent);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 4px;
+    box-shadow: 0 4px 20px rgba(124,106,255,0.3);
+  }
+
+  .calc-btn:hover { background: #6b59ee; box-shadow: 0 4px 24px rgba(124,106,255,0.45); }
+  .calc-btn:active { transform: scale(0.98); }
+
+  /* Result box */
+  .result-box {
+    margin-top: 18px;
+    padding: 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: none;
+  }
+
+  .result-box.show { display: block; }
+
+  .result-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .result-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--green);
+    line-height: 1.2;
+  }
+
+  .result-note {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 6px;
+  }
+
+  .result-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 18px;
+    display: none;
+  }
+
+  .result-grid.show { display: grid; }
+
+  .result-mini {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+
+  .result-mini .result-label { margin-bottom: 4px; }
+  .result-mini .result-value { font-size: 17px; }
+
+  /* BMI meter */
+  .bmi-meter {
+    margin-top: 14px;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(90deg, var(--blue) 0%, var(--green) 25%, var(--amber) 60%, var(--red) 100%);
+    position: relative;
+  }
+
+  .bmi-needle {
+    position: absolute;
+    top: -4px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transform: translateX(-50%);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    transition: left 0.5s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  /* Unit converter categories */
+  .unit-cats {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+
+  .cat-pill {
+    padding: 6px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .cat-pill.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .swap-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--text2);
+    margin: 8px auto;
+    transition: all 0.15s;
+  }
+
+  .swap-btn:hover { border-color: var(--accent); color: var(--accent); transform: rotate(180deg); }
+
+  /* PAGE TITLE */
+  .panel-header {
+    margin-bottom: 24px;
+  }
+
+  .panel-title {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text);
+  }
+
+  .panel-title span { color: var(--accent); }
+
+  .panel-desc {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 4px;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    header { flex-direction: column; gap: 8px; text-align: center; }
+    .calc-wrap { grid-template-columns: 1fr; }
+    .hist-panel { display: none; }
+    .nav-btn { font-size: 11px; padding: 9px 8px; min-width: 70px; }
+    .tool-grid { grid-template-columns: 1fr; }
+    .result-grid { grid-template-columns: 1fr; }
+    .calc-result { font-size: 28px; }
+    .btn { padding: 13px 6px; font-size: 14px; }
+  }
+
+  @media (max-width: 420px) {
+    .nav { gap: 3px; }
+    .nav-btn { font-size: 10px; padding: 8px 4px; min-width: 50px; }
+    .btn.fn { font-size: 10px; }
+    .sci-grid { grid-template-columns: repeat(5, 1fr); }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="logo">Calc<span>Hub</span></div>
+    <div class="tagline">All-in-one calculator suite</div>
+  </header>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showPanel('calc')">Scientific</button>
+    <button class="nav-btn" onclick="showPanel('unit')">Unit Converter</button>
+    <button class="nav-btn" onclick="showPanel('bmi')">BMI</button>
+    <button class="nav-btn" onclick="showPanel('pct')">Percentage</button>
+    <button class="nav-btn" onclick="showPanel('emi')">EMI</button>
+    <button class="nav-btn" onclick="showPanel('age')">Age</button>
+  </nav>
+
+  <!-- ══════════════════ SCIENTIFIC CALCULATOR ══════════════════ -->
+  <div class="panel active" id="panel-calc">
+    <div class="calc-wrap">
+      <div class="calc-box">
+        <div class="calc-display">
+          <div class="calc-expr" id="c-expr"></div>
+          <div class="calc-result" id="c-result">0</div>
+        </div>
+
+        <div class="calc-meta">
+          <button class="meta-btn on" id="btn-sci-mode" onclick="toggleSciMode()">SCI</button>
+          <button class="meta-btn on" id="btn-deg" onclick="toggleDeg()">DEG</button>
+          <button class="meta-btn" id="btn-inv" onclick="toggleInv()">INV</button>
+          <button class="meta-btn" onclick="memStore()">MS</button>
+          <button class="meta-btn" onclick="memRecall()">MR</button>
+        </div>
+
+        <div id="sci-rows" class="sci-grid">
+          <button class="btn fn" id="fn-sin" onclick="cfn('sin')">sin</button>
+          <button class="btn fn" id="fn-cos" onclick="cfn('cos')">cos</button>
+          <button class="btn fn" id="fn-tan" onclick="cfn('tan')">tan</button>
+          <button class="btn fn" onclick="cfn('log10')">log</button>
+          <button class="btn fn" onclick="cfn('log')">ln</button>
+          <button class="btn fn" onclick="cfn('sqrt')">√x</button>
+          <button class="btn fn" onclick="cfn('cbrt')">∛x</button>
+          <button class="btn fn" onclick="cinput('**2')">x²</button>
+          <button class="btn fn" onclick="cinput('**')">xʸ</button>
+          <button class="btn fn" onclick="cinput('!')">n!</button>
+          <button class="btn fn grn" onclick="cconst(Math.PI,'π')">π</button>
+          <button class="btn fn grn" onclick="cconst(Math.E,'e')">e</button>
+          <button class="btn fn" onclick="cinput('(')">( </button>
+          <button class="btn fn" onclick="cinput(')')"> )</button>
+          <button class="btn fn amb" onclick="cinput('%')">mod</button>
+        </div>
+
+        <div class="main-grid">
+          <button class="btn clr" onclick="cac()">AC</button>
+          <button class="btn fn" onclick="cce()">⌫</button>
+          <button class="btn fn" onclick="ctoggleSign()">+/−</button>
+          <button class="btn op" onclick="cop('/')">÷</button>
+
+          <button class="btn" onclick="cnum('7')">7</button>
+          <button class="btn" onclick="cnum('8')">8</button>
+          <button class="btn" onclick="cnum('9')">9</button>
+          <button class="btn op" onclick="cop('*')">×</button>
+
+          <button class="btn" onclick="cnum('4')">4</button>
+          <button class="btn" onclick="cnum('5')">5</button>
+          <button class="btn" onclick="cnum('6')">6</button>
+          <button class="btn op" onclick="cop('-')">−</button>
+
+          <button class="btn" onclick="cnum('1')">1</button>
+          <button class="btn" onclick="cnum('2')">2</button>
+          <button class="btn" onclick="cnum('3')">3</button>
+          <button class="btn op" onclick="cop('+')">+</button>
+
+          <button class="btn fn" onclick="cnum('0')">0</button>
+          <button class="btn" onclick="cdot()">.</button>
+          <button class="btn fn" onclick="cinput('e+')">EXP</button>
+          <button class="btn eq" onclick="ceq()">=</button>
+        </div>
+      </div>
+
+      <div class="hist-panel">
+        <div class="hist-head">
+          <h3>History</h3>
+          <button class="hist-clr" onclick="clearHist()">Clear all</button>
+        </div>
+        <div class="hist-list" id="hist-list">
+          <div class="hist-empty">No calculations yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ UNIT CONVERTER ══════════════════ -->
+  <div class="panel" id="panel-unit">
+    <div class="panel-header">
+      <div class="panel-title">Unit <span>Converter</span></div>
+      <div class="panel-desc">Convert between common units instantly</div>
+    </div>
+
+    <div class="unit-cats" id="unit-cats"></div>
+
+    <div class="tool-grid">
+      <div class="tool-card">
+        <div class="field">
+          <label>From</label>
+          <select id="u-from" onchange="unitConvert()"></select>
+        </div>
+        <div class="field">
+          <label>Value</label>
+          <input type="number" id="u-val" value="1" oninput="unitConvert()" placeholder="Enter value">
+        </div>
+        <div class="swap-btn" onclick="unitSwap()" title="Swap units">⇅</div>
+        <div class="field">
+          <label>To</label>
+          <select id="u-to" onchange="unitConvert()"></select>
+        </div>
+        <div class="result-box show" id="u-result">
+          <div class="result-label">Result</div>
+          <div class="result-value" id="u-ans">—</div>
+          <div class="result-note" id="u-formula">—</div>
+        </div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">Quick Reference</div>
+        <div class="tool-sub">Common conversions</div>
+        <div id="u-quick" style="font-family:var(--mono);font-size:13px;color:var(--text2);line-height:2"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ BMI ══════════════════ -->
+  <div class="panel" id="panel-bmi">
+    <div class="panel-header">
+      <div class="panel-title">BMI <span>Calculator</span></div>
+      <div class="panel-desc">Body Mass Index — health indicator</div>
+    </div>
+    <div class="tool-grid">
+      <div class="tool-card">
+        <div class="tool-title">Your Details</div>
+        <div class="tool-sub">Enter your measurements</div>
+
+        <div style="display:flex;gap:8px;margin-bottom:14px">
+          <button class="cat-pill active" id="bmi-cm" onclick="setBmiUnit('cm')">Metric (cm/kg)</button>
+          <button class="cat-pill" id="bmi-ft" onclick="setBmiUnit('ft')">Imperial (ft/lbs)</button>
+        </div>
+
+        <div id="bmi-metric">
+          <div class="field"><label>Height (cm)</label><input type="number" id="b-height-cm" placeholder="e.g. 170" oninput="calcBMI()"></div>
+          <div class="field"><label>Weight (kg)</label><input type="number" id="b-weight-kg" placeholder="e.g. 65" oninput="calcBMI()"></div>
+        </div>
+        <div id="bmi-imperial" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="field"><label>Height (ft)</label><input type="number" id="b-height-ft" placeholder="5" oninput="calcBMI()"></div>
+            <div class="field"><label>Height (in)</label><input type="number" id="b-height-in" placeholder="7" oninput="calcBMI()"></div>
+          </div>
+          <div class="field"><label>Weight (lbs)</label><input type="number" id="b-weight-lb" placeholder="e.g. 143" oninput="calcBMI()"></div>
+        </div>
+
+        <div class="field"><label>Age</label><input type="number" id="b-age" placeholder="e.g. 25" oninput="calcBMI()"></div>
+        <div class="field">
+          <label>Gender</label>
+          <select id="b-gender" onchange="calcBMI()">
+            <option value="any">Prefer not to say</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">Result</div>
+        <div class="tool-sub">BMI analysis</div>
+
+        <div class="result-box show">
+          <div class="result-label">Your BMI</div>
+          <div class="result-value" id="bmi-val" style="font-size:36px">—</div>
+          <div class="result-note" id="bmi-cat" style="font-size:14px;margin-top:8px">Enter your details</div>
+        </div>
+
+        <div class="bmi-meter" style="margin-top:16px">
+          <div class="bmi-needle" id="bmi-needle" style="left:0%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-family:var(--mono);font-size:10px;color:var(--text3)">
+          <span>Underweight<br>&lt;18.5</span>
+          <span style="text-align:center">Normal<br>18.5–25</span>
+          <span style="text-align:center">Overweight<br>25–30</span>
+          <span style="text-align:right">Obese<br>&gt;30</span>
+        </div>
+
+        <div class="result-grid show" style="margin-top:20px">
+          <div class="result-mini"><div class="result-label">Ideal weight range</div><div class="result-value" id="bmi-ideal" style="font-size:14px">—</div></div>
+          <div class="result-mini"><div class="result-label">Weight to lose/gain</div><div class="result-value" id="bmi-diff" style="font-size:14px">—</div></div>
+        </div>
+
+        <div style="margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--text3);line-height:1.7">
+          BMI is a screening tool, not a diagnostic measure. Consult a healthcare professional for personal advice.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ PERCENTAGE ══════════════════ -->
+  <div class="panel" id="panel-pct">
+    <div class="panel-header">
+      <div class="panel-title">Percentage <span>Calculator</span></div>
+      <div class="panel-desc">Six types of percentage calculations</div>
+    </div>
+    <div class="tool-grid">
+
+      <div class="tool-card">
+        <div class="tool-title">What is X% of Y?</div>
+        <div class="tool-sub">Basic percentage</div>
+        <div class="field"><label>Percentage (%)</label><input type="number" id="p1-x" placeholder="e.g. 20" oninput="calcPct1()"></div>
+        <div class="field"><label>Of value</label><input type="number" id="p1-y" placeholder="e.g. 500" oninput="calcPct1()"></div>
+        <div class="result-box" id="p1-res"><div class="result-label">Result</div><div class="result-value" id="p1-ans">—</div></div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">X is what % of Y?</div>
+        <div class="tool-sub">Reverse percentage</div>
+        <div class="field"><label>Value (X)</label><input type="number" id="p2-x" placeholder="e.g. 80" oninput="calcPct2()"></div>
+        <div class="field"><label>Total (Y)</label><input type="number" id="p2-y" placeholder="e.g. 200" oninput="calcPct2()"></div>
+        <div class="result-box" id="p2-res"><div class="result-label">Result</div><div class="result-value" id="p2-ans">—</div></div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">% Change</div>
+        <div class="tool-sub">Increase or decrease</div>
+        <div class="field"><label>Original value</label><input type="number" id="p3-x" placeholder="e.g. 100" oninput="calcPct3()"></div>
+        <div class="field"><label>New value</label><input type="number" id="p3-y" placeholder="e.g. 150" oninput="calcPct3()"></div>
+        <div class="result-box" id="p3-res"><div class="result-label">Change</div><div class="result-value" id="p3-ans">—</div></div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">Add / Remove %</div>
+        <div class="tool-sub">Discount or markup</div>
+        <div class="field"><label>Base value</label><input type="number" id="p4-base" placeholder="e.g. 1000" oninput="calcPct4()"></div>
+        <div class="field"><label>Percentage (%)</label><input type="number" id="p4-pct" placeholder="e.g. 18" oninput="calcPct4()"></div>
+        <div class="result-grid show" id="p4-res" style="display:none">
+          <div class="result-mini"><div class="result-label">After adding %</div><div class="result-value" id="p4-add">—</div></div>
+          <div class="result-mini"><div class="result-label">After removing %</div><div class="result-value" id="p4-sub">—</div></div>
+        </div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">GST Calculator</div>
+        <div class="tool-sub">Calculate GST on amount</div>
+        <div class="field"><label>Amount (₹)</label><input type="number" id="gst-amt" placeholder="e.g. 10000" oninput="calcGST()"></div>
+        <div class="field">
+          <label>GST Rate</label>
+          <select id="gst-rate" onchange="calcGST()">
+            <option value="5">5%</option>
+            <option value="12">12%</option>
+            <option value="18" selected>18%</option>
+            <option value="28">28%</option>
+          </select>
+        </div>
+        <div class="result-grid show" id="gst-res" style="display:none">
+          <div class="result-mini"><div class="result-label">GST Amount</div><div class="result-value" id="gst-tax">—</div></div>
+          <div class="result-mini"><div class="result-label">Total (incl. GST)</div><div class="result-value" id="gst-total">—</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════ EMI ══════════════════ -->
+  <div class="panel" id="panel-emi">
+    <div class="panel-header">
+      <div class="panel-title">EMI <span>Calculator</span></div>
+      <div class="panel-desc">Equated Monthly Installment for loans</div>
+    </div>
+    <div class="tool-grid">
+      <div class="tool-card">
+        <div class="tool-title">Loan Details</div>
+        <div class="tool-sub">Enter your loan information</div>
+
+        <div class="field">
+          <label>Loan Amount (₹)</label>
+          <input type="number" id="e-principal" placeholder="e.g. 500000" oninput="calcEMI()">
+        </div>
+        <div class="field">
+          <label>Annual Interest Rate (%)</label>
+          <input type="number" id="e-rate" placeholder="e.g. 8.5" step="0.1" oninput="calcEMI()">
+        </div>
+        <div class="field">
+          <label>Loan Tenure</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <input type="number" id="e-years" placeholder="Years" oninput="calcEMI()">
+            <input type="number" id="e-months" placeholder="Months" oninput="calcEMI()">
+          </div>
+        </div>
+        <div class="field">
+          <label>Loan Type</label>
+          <select id="e-type" onchange="calcEMI()">
+            <option value="home">Home Loan</option>
+            <option value="car">Car Loan</option>
+            <option value="personal">Personal Loan</option>
+            <option value="education">Education Loan</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">EMI Breakdown</div>
+        <div class="tool-sub">Monthly payment analysis</div>
+
+        <div class="result-box show">
+          <div class="result-label">Monthly EMI</div>
+          <div class="result-value" id="emi-monthly" style="font-size:30px">₹ —</div>
+        </div>
+
+        <div class="result-grid show" style="margin-top:14px">
+          <div class="result-mini"><div class="result-label">Principal</div><div class="result-value" id="emi-principal" style="font-size:15px">—</div></div>
+          <div class="result-mini"><div class="result-label">Total Interest</div><div class="result-value" id="emi-interest" style="font-size:15px;color:var(--amber)">—</div></div>
+          <div class="result-mini"><div class="result-label">Total Payment</div><div class="result-value" id="emi-total" style="font-size:15px">—</div></div>
+          <div class="result-mini"><div class="result-label">Interest %</div><div class="result-value" id="emi-pct" style="font-size:15px;color:var(--red)">—</div></div>
+        </div>
+
+        <!-- Donut visual -->
+        <svg id="emi-donut" viewBox="0 0 120 120" style="width:120px;margin:20px auto;display:block;display:none">
+          <circle cx="60" cy="60" r="48" fill="none" stroke="#1a1a24" stroke-width="16"/>
+          <circle cx="60" cy="60" r="48" fill="none" stroke="#7c6aff" stroke-width="16"
+            stroke-dasharray="301.6" stroke-dashoffset="301.6" id="emi-arc"
+            transform="rotate(-90 60 60)" stroke-linecap="round"/>
+          <text x="60" y="56" text-anchor="middle" font-family="JetBrains Mono" font-size="10" fill="#9090b0">Principal</text>
+          <text x="60" y="70" text-anchor="middle" font-family="JetBrains Mono" font-size="12" font-weight="700" fill="#f0f0ff" id="emi-donut-pct">—</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ AGE CALCULATOR ══════════════════ -->
+  <div class="panel" id="panel-age">
+    <div class="panel-header">
+      <div class="panel-title">Age <span>Calculator</span></div>
+      <div class="panel-desc">Calculate exact age and time differences</div>
+    </div>
+    <div class="tool-grid">
+      <div class="tool-card">
+        <div class="tool-title">Date of Birth</div>
+        <div class="tool-sub">Enter your birth date</div>
+        <div class="field"><label>Date of Birth</label><input type="date" id="age-dob" onchange="calcAge()" style="color-scheme:dark"></div>
+        <div class="field"><label>Calculate age on (default: today)</label><input type="date" id="age-on" onchange="calcAge()" style="color-scheme:dark"></div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">Your Age</div>
+        <div class="tool-sub">Exact breakdown</div>
+
+        <div class="result-box show">
+          <div class="result-label">Age</div>
+          <div class="result-value" id="age-main" style="font-size:28px">Enter date of birth</div>
+        </div>
+
+        <div class="result-grid show" style="margin-top:14px">
+          <div class="result-mini"><div class="result-label">Total months</div><div class="result-value" id="age-months" style="font-size:16px">—</div></div>
+          <div class="result-mini"><div class="result-label">Total weeks</div><div class="result-value" id="age-weeks" style="font-size:16px">—</div></div>
+          <div class="result-mini"><div class="result-label">Total days</div><div class="result-value" id="age-days" style="font-size:16px">—</div></div>
+          <div class="result-mini"><div class="result-label">Next birthday</div><div class="result-value" id="age-next" style="font-size:14px">—</div></div>
+        </div>
+
+        <div class="result-box show" style="margin-top:14px">
+          <div class="result-label">Day of birth</div>
+          <div class="result-value" id="age-day" style="font-size:18px;color:var(--blue)">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+/* ═══════════════════ CALCULATOR ENGINE ═══════════════════ */
+let cExpr = '', cJustCalc = false, cIsDeg = true, cInv = false, cMem = 0, cSciMode = true;
+let history = [];
+
+function cnum(n) {
+  if(cJustCalc) { cExpr=''; cJustCalc=false; }
+  cExpr += n; cUpdate();
+}
+function cdot() {
+  if(cJustCalc) { cExpr='0'; cJustCalc=false; }
+  const parts = cExpr.split(/[\+\-\*\/\(]/);
+  if(parts[parts.length-1].includes('.')) return;
+  if(!cExpr || /[\+\-\*\/\(]$/.test(cExpr)) cExpr += '0';
+  cExpr += '.'; cUpdate();
+}
+function cop(o) {
+  cJustCalc = false;
+  if(!cExpr && o!=='-') return;
+  if(/[\+\-\*\/]$/.test(cExpr)) cExpr = cExpr.slice(0,-1);
+  cExpr += o; cUpdate();
+}
+function cinput(s) { cJustCalc=false; cExpr+=s; cUpdate(); }
+function cconst(v,n) {
+  if(cJustCalc) { cExpr=''; cJustCalc=false; }
+  cExpr += v.toPrecision(10); cUpdate();
+  document.getElementById('c-result').textContent = n+'='+v.toFixed(8);
+}
+function ctoggleSign() {
+  if(!cExpr) return;
+  cExpr = cExpr.startsWith('-') ? cExpr.slice(1) : '-'+cExpr;
+  cUpdate();
+}
+function cac() { cExpr=''; cJustCalc=false; document.getElementById('c-result').textContent='0'; document.getElementById('c-expr').textContent=''; }
+function cce() { cExpr=cExpr.slice(0,-1); if(!cExpr) document.getElementById('c-result').textContent='0'; cUpdate(); }
+function memStore() { try{ cMem = eval(cExpr)||0; } catch(e){} }
+function memRecall() { if(cJustCalc){cExpr='';} cExpr+=cMem; cUpdate(); }
+
+function cfn(fn) {
+  if(cJustCalc) { cJustCalc=false; }
+  const inv = cInv;
+  const fnMap = {
+    sin: inv ? 'asin' : 'sin',
+    cos: inv ? 'acos' : 'cos',
+    tan: inv ? 'atan' : 'tan',
+    log10: inv ? '__pow10__' : 'log10',
+    log: inv ? '__expe__' : 'log',
+    sqrt: inv ? '__sq__' : 'sqrt',
+    cbrt: 'cbrt',
+  };
+  const f = fnMap[fn] || fn;
+  if(f==='__pow10__') { cExpr+='10**'; }
+  else if(f==='__expe__') { cExpr+='Math.E**'; }
+  else if(f==='__sq__') { cExpr+='**2'; }
+  else { cExpr+=f+'('; }
+  cUpdate();
+}
+
+function factorial(n) {
+  n=Math.round(Math.abs(n)); if(n>170) return Infinity;
+  if(n<=1) return 1; let r=1; for(let i=2;i<=n;i++) r*=i; return r;
+}
+
+function ceq() {
+  if(!cExpr) return;
+  const display = cExpr;
+  try {
+    let e = cExpr
+      .replace(/\b(sin|asin)\(/g, m => m.startsWith('a') ? (cIsDeg?'(180/Math.PI)*Math.asin(':' Math.asin(') : (cIsDeg?'Math.sin(Math.PI/180*':'Math.sin('))
+      .replace(/\b(cos|acos)\(/g, m => m.startsWith('a') ? (cIsDeg?'(180/Math.PI)*Math.acos(':'Math.acos(') : (cIsDeg?'Math.cos(Math.PI/180*':'Math.cos('))
+      .replace(/\b(tan|atan)\(/g, m => m.startsWith('a') ? (cIsDeg?'(180/Math.PI)*Math.atan(':'Math.atan(') : (cIsDeg?'Math.tan(Math.PI/180*':'Math.tan('))
+      .replace(/\b(log10|log|sqrt|cbrt|abs)\(/g, 'Math.$1(')
+      .replace(/(\d+)!/g, 'factorial($1)');
+
+    // auto-close parens
+    let open=(e.match(/\(/g)||[]).length, close=(e.match(/\)/g)||[]).length;
+    while(open>close){e+=')';close++;}
+
+    const res = Function('Math','factorial','"use strict";return('+e+')')(Math,factorial);
+    if(typeof res!=='number' || !isFinite(res)) {
+      document.getElementById('c-result').textContent = isNaN(res)?'Not a number':'Infinity';
+      document.getElementById('c-result').className='calc-result error';
+      return;
+    }
+    const fmt = parseFloat(res.toPrecision(12)).toString();
+    document.getElementById('c-result').textContent = fmt;
+    document.getElementById('c-result').className = 'calc-result';
+    document.getElementById('c-expr').textContent = display+' =';
+    addHist(display, fmt);
+    cExpr = fmt; cJustCalc = true;
+  } catch(err) {
+    document.getElementById('c-result').textContent = 'Syntax error';
+    document.getElementById('c-result').className='calc-result error';
+    cExpr='';
+  }
+}
+
+function cUpdate() {
+  document.getElementById('c-expr').textContent = cExpr;
+  try {
+    const preview = cExpr.replace(/\b(log10|log|sqrt|cbrt)\(/g,'Math.$1(');
+    const res = Function('Math','"use strict";return('+preview+')')(Math);
+    if(typeof res==='number'&&isFinite(res)&&cExpr.length>1)
+      document.getElementById('c-result').textContent = parseFloat(res.toPrecision(10));
+  } catch(e) {}
+}
+
+function toggleSciMode() {
+  cSciMode=!cSciMode;
+  document.getElementById('sci-rows').style.display = cSciMode?'grid':'none';
+  document.getElementById('btn-sci-mode').className='meta-btn'+(cSciMode?' on':'');
+}
+function toggleDeg() {
+  cIsDeg=!cIsDeg;
+  document.getElementById('btn-deg').textContent=cIsDeg?'DEG':'RAD';
+  document.getElementById('btn-deg').className='meta-btn'+(cIsDeg?' on':'');
+}
+function toggleInv() {
+  cInv=!cInv;
+  document.getElementById('btn-inv').className='meta-btn'+(cInv?' on':'');
+  document.getElementById('fn-sin').textContent=cInv?'sin⁻¹':'sin';
+  document.getElementById('fn-cos').textContent=cInv?'cos⁻¹':'cos';
+  document.getElementById('fn-tan').textContent=cInv?'tan⁻¹':'tan';
+}
+
+function addHist(e,r) {
+  history.unshift({e,r}); if(history.length>30) history.pop(); renderHist();
+}
+function clearHist() { history=[]; renderHist(); }
+function renderHist() {
+  const l=document.getElementById('hist-list');
+  if(!history.length){l.innerHTML='<div class="hist-empty">No calculations yet</div>';return;}
+  l.innerHTML=history.map((h,i)=>`<div class="hist-item" onclick="useHist(${i})"><div class="hist-expr">${h.e}</div><div class="hist-ans">= ${h.r}</div></div>`).join('');
+}
+function useHist(i){cExpr=history[i].r;cJustCalc=false;cUpdate();}
+
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('panel-calc').style.display==='none') return;
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  if(e.key>='0'&&e.key<='9') cnum(e.key);
+  else if(e.key==='.') cdot();
+  else if(e.key==='+'||e.key==='-'||e.key==='*') cop(e.key);
+  else if(e.key==='/'){e.preventDefault();cop('/');}
+  else if(e.key==='Enter'||e.key==='=') ceq();
+  else if(e.key==='Backspace') cce();
+  else if(e.key==='Escape') cac();
+});
+
+/* ═══════════════════ UNIT CONVERTER ═══════════════════ */
+const UNITS = {
+  Length: {
+    units: ['Kilometer','Meter','Centimeter','Millimeter','Mile','Yard','Foot','Inch','Nautical Mile'],
+    base: 'Meter',
+    toBase: {Kilometer:1000,Meter:1,Centimeter:0.01,Millimeter:0.001,Mile:1609.344,Yard:0.9144,Foot:0.3048,Inch:0.0254,'Nautical Mile':1852},
+  },
+  Weight: {
+    units: ['Kilogram','Gram','Milligram','Pound','Ounce','Ton','Stone'],
+    base: 'Gram',
+    toBase: {Kilogram:1000,Gram:1,Milligram:0.001,Pound:453.592,Ounce:28.3495,Ton:1e6,Stone:6350.29},
+  },
+  Temperature: {
+    units: ['Celsius','Fahrenheit','Kelvin'],
+    special: true,
+  },
+  Area: {
+    units: ['Square Meter','Square Kilometer','Square Mile','Square Yard','Square Foot','Acre','Hectare'],
+    base: 'Square Meter',
+    toBase: {'Square Meter':1,'Square Kilometer':1e6,'Square Mile':2589988,'Square Yard':0.836127,'Square Foot':0.092903,'Acre':4046.86,'Hectare':10000},
+  },
+  Volume: {
+    units: ['Liter','Milliliter','Cubic Meter','Gallon (US)','Fluid Ounce','Cup','Pint','Quart'],
+    base: 'Liter',
+    toBase: {Liter:1,Milliliter:0.001,'Cubic Meter':1000,'Gallon (US)':3.78541,'Fluid Ounce':0.0295735,Cup:0.236588,Pint:0.473176,Quart:0.946353},
+  },
+  Speed: {
+    units: ['km/h','m/s','mph','Knot','Mach'],
+    base: 'm/s',
+    toBase: {'km/h':1/3.6,'m/s':1,'mph':0.44704,'Knot':0.514444,'Mach':340.29},
+  },
+  Data: {
+    units: ['Bit','Byte','Kilobyte','Megabyte','Gigabyte','Terabyte'],
+    base: 'Bit',
+    toBase: {Bit:1,Byte:8,Kilobyte:8192,Megabyte:8388608,Gigabyte:8589934592,Terabyte:8796093022208},
+  },
+  Time: {
+    units: ['Second','Minute','Hour','Day','Week','Month','Year'],
+    base: 'Second',
+    toBase: {Second:1,Minute:60,Hour:3600,Day:86400,Week:604800,Month:2629746,Year:31556952},
+  },
+};
+
+let uCat = 'Length';
+
+function initUnits() {
+  const cats = document.getElementById('unit-cats');
+  cats.innerHTML = Object.keys(UNITS).map(k=>
+    `<button class="cat-pill${k===uCat?' active':''}" onclick="setUCat('${k}')">${k}</button>`
+  ).join('');
+  populateUnitSelects();
+}
+
+function setUCat(c) {
+  uCat=c;
+  document.querySelectorAll('.cat-pill').forEach(b=>b.classList.toggle('active',b.textContent===c));
+  populateUnitSelects();
+}
+
+function populateUnitSelects() {
+  const cat=UNITS[uCat], from=document.getElementById('u-from'), to=document.getElementById('u-to');
+  from.innerHTML=cat.units.map((u,i)=>`<option${i===0?' selected':''}>${u}</option>`).join('');
+  to.innerHTML=cat.units.map((u,i)=>`<option${i===1?' selected':''}>${u}</option>`).join('');
+  updateQuickRef();
+  unitConvert();
+}
+
+function unitConvert() {
+  const val=parseFloat(document.getElementById('u-val').value);
+  const from=document.getElementById('u-from').value;
+  const to=document.getElementById('u-to').value;
+  const cat=UNITS[uCat];
+  let result;
+  if(isNaN(val)){document.getElementById('u-ans').textContent='Enter a value';return;}
+  if(cat.special) { // Temperature
+    if(from==='Celsius'&&to==='Fahrenheit') result=val*9/5+32;
+    else if(from==='Celsius'&&to==='Kelvin') result=val+273.15;
+    else if(from==='Fahrenheit'&&to==='Celsius') result=(val-32)*5/9;
+    else if(from==='Fahrenheit'&&to==='Kelvin') result=(val-32)*5/9+273.15;
+    else if(from==='Kelvin'&&to==='Celsius') result=val-273.15;
+    else if(from==='Kelvin'&&to==='Fahrenheit') result=(val-273.15)*9/5+32;
+    else result=val;
+  } else {
+    const base=val*cat.toBase[from];
+    result=base/cat.toBase[to];
+  }
+  const fmt = result<0.0001||result>1e12 ? result.toExponential(4) : parseFloat(result.toPrecision(8)).toString();
+  document.getElementById('u-ans').textContent=fmt+' '+to;
+  document.getElementById('u-formula').textContent=`1 ${from} = ${parseFloat((cat.toBase?.[from]/cat.toBase?.[to]||1).toPrecision(6))} ${to}`;
+}
+
+function unitSwap() {
+  const from=document.getElementById('u-from'), to=document.getElementById('u-to');
+  const tmp=from.value; from.value=to.value; to.value=tmp; unitConvert();
+}
+
+function updateQuickRef() {
+  const cat=UNITS[uCat];
+  const pairs=cat.units.slice(0,4).map((u,i)=>cat.units.slice(i+1,i+2).map(v=>{
+    if(cat.special) return '';
+    const r=parseFloat((cat.toBase[u]/cat.toBase[v]).toPrecision(4));
+    return `1 ${u} = ${r} ${v}`;
+  }).join('')).filter(Boolean);
+  document.getElementById('u-quick').innerHTML=pairs.slice(0,5).join('<br>')||'Conversions available above';
+}
+
+/* ═══════════════════ BMI ═══════════════════ */
+let bmiUnit='cm';
+function setBmiUnit(u){
+  bmiUnit=u;
+  document.getElementById('bmi-metric').style.display=u==='cm'?'block':'none';
+  document.getElementById('bmi-imperial').style.display=u==='ft'?'block':'none';
+  document.getElementById('bmi-cm').className='cat-pill'+(u==='cm'?' active':'');
+  document.getElementById('bmi-ft').className='cat-pill'+(u==='ft'?' active':'');
+  calcBMI();
+}
+
+function calcBMI() {
+  let h,w;
+  if(bmiUnit==='cm'){
+    h=parseFloat(document.getElementById('b-height-cm').value)/100;
+    w=parseFloat(document.getElementById('b-weight-kg').value);
+  } else {
+    const ft=parseFloat(document.getElementById('b-height-ft').value)||0;
+    const inch=parseFloat(document.getElementById('b-height-in').value)||0;
+    h=(ft*12+inch)*0.0254;
+    w=parseFloat(document.getElementById('b-weight-lb').value)*0.453592;
+  }
+  if(!h||!w||h<=0||w<=0) return;
+  const bmi=w/(h*h);
+  const bmiR=parseFloat(bmi.toFixed(1));
+  document.getElementById('bmi-val').textContent=bmiR;
+  let cat,col;
+  if(bmi<18.5){cat='Underweight';col='var(--blue)';}
+  else if(bmi<25){cat='Normal weight';col='var(--green)';}
+  else if(bmi<30){cat='Overweight';col='var(--amber)';}
+  else{cat='Obese';col='var(--red)';}
+  document.getElementById('bmi-cat').textContent=cat;
+  document.getElementById('bmi-cat').style.color=col;
+  // needle: bmi 10=0%, 40=100%
+  const pct=Math.min(100,Math.max(0,(bmi-10)/30*100));
+  document.getElementById('bmi-needle').style.left=pct+'%';
+  // ideal weight (18.5-24.9 range)
+  const idealLow=(18.5*h*h).toFixed(1), idealHigh=(24.9*h*h).toFixed(1);
+  const unit=bmiUnit==='cm'?'kg':'lbs';
+  const idealLowD=bmiUnit==='cm'?idealLow:(idealLow/0.453592).toFixed(1);
+  const idealHighD=bmiUnit==='cm'?idealHigh:(idealHigh/0.453592).toFixed(1);
+  document.getElementById('bmi-ideal').textContent=idealLowD+'–'+idealHighD+' '+unit;
+  const wDisplay=bmiUnit==='cm'?w.toFixed(1):(w/0.453592).toFixed(1);
+  const midIdeal=bmiUnit==='cm'?((18.5+24.9)/2*h*h).toFixed(1):((18.5+24.9)/2*h*h/0.453592).toFixed(1);
+  const diff=(parseFloat(wDisplay)-parseFloat(midIdeal)).toFixed(1);
+  document.getElementById('bmi-diff').textContent=(diff>0?'+':'')+diff+' '+unit;
+}
+
+/* ═══════════════════ PERCENTAGE ═══════════════════ */
+function calcPct1(){
+  const x=parseFloat(document.getElementById('p1-x').value),y=parseFloat(document.getElementById('p1-y').value);
+  const b=document.getElementById('p1-res');
+  if(isNaN(x)||isNaN(y)){b.classList.remove('show');return;}
+  document.getElementById('p1-ans').textContent=parseFloat((x/100*y).toFixed(4));
+  b.classList.add('show');
+}
+function calcPct2(){
+  const x=parseFloat(document.getElementById('p2-x').value),y=parseFloat(document.getElementById('p2-y').value);
+  const b=document.getElementById('p2-res');
+  if(isNaN(x)||isNaN(y)||!y){b.classList.remove('show');return;}
+  document.getElementById('p2-ans').textContent=parseFloat((x/y*100).toFixed(4))+'%';
+  b.classList.add('show');
+}
+function calcPct3(){
+  const x=parseFloat(document.getElementById('p3-x').value),y=parseFloat(document.getElementById('p3-y').value);
+  const b=document.getElementById('p3-res');
+  if(isNaN(x)||isNaN(y)||!x){b.classList.remove('show');return;}
+  const ch=(y-x)/Math.abs(x)*100;
+  const el=document.getElementById('p3-ans');
+  el.textContent=(ch>0?'+':'')+parseFloat(ch.toFixed(2))+'%';
+  el.style.color=ch>0?'var(--green)':'var(--red)';
+  b.classList.add('show');
+}
+function calcPct4(){
+  const b=parseFloat(document.getElementById('p4-base').value),p=parseFloat(document.getElementById('p4-pct').value);
+  const g=document.getElementById('p4-res');
+  if(isNaN(b)||isNaN(p)){g.style.display='none';return;}
+  document.getElementById('p4-add').textContent=parseFloat((b*(1+p/100)).toFixed(2));
+  document.getElementById('p4-sub').textContent=parseFloat((b*(1-p/100)).toFixed(2));
+  g.style.display='grid';
+}
+function calcGST(){
+  const a=parseFloat(document.getElementById('gst-amt').value),r=parseFloat(document.getElementById('gst-rate').value);
+  const g=document.getElementById('gst-res');
+  if(isNaN(a)){g.style.display='none';return;}
+  const tax=a*r/100;
+  document.getElementById('gst-tax').textContent='₹'+parseFloat(tax.toFixed(2)).toLocaleString('en-IN');
+  document.getElementById('gst-total').textContent='₹'+parseFloat((a+tax).toFixed(2)).toLocaleString('en-IN');
+  g.style.display='grid';
+}
+
+/* ═══════════════════ EMI ═══════════════════ */
+function calcEMI(){
+  const P=parseFloat(document.getElementById('e-principal').value);
+  const r=parseFloat(document.getElementById('e-rate').value)/12/100;
+  const years=parseFloat(document.getElementById('e-years').value)||0;
+  const months=parseFloat(document.getElementById('e-months').value)||0;
+  const n=years*12+months;
+  if(!P||!r||!n){return;}
+  const emi=P*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1);
+  const total=emi*n, interest=total-P, pct=P/total*100;
+  const fmt=v=>'₹'+Math.round(v).toLocaleString('en-IN');
+  document.getElementById('emi-monthly').textContent=fmt(emi);
+  document.getElementById('emi-principal').textContent=fmt(P);
+  document.getElementById('emi-interest').textContent=fmt(interest);
+  document.getElementById('emi-total').textContent=fmt(total);
+  document.getElementById('emi-pct').textContent=parseFloat((interest/total*100).toFixed(1))+'% interest';
+  // donut
+  const circ=301.6, offset=circ*(1-pct/100);
+  document.getElementById('emi-arc').setAttribute('stroke-dashoffset',offset.toFixed(1));
+  document.getElementById('emi-donut-pct').textContent=Math.round(pct)+'%';
+  document.getElementById('emi-donut').style.display='block';
+}
+
+/* ═══════════════════ AGE ═══════════════════ */
+function calcAge(){
+  const dobStr=document.getElementById('age-dob').value;
+  const onStr=document.getElementById('age-on').value;
+  if(!dobStr) return;
+  const dob=new Date(dobStr);
+  const on=onStr?new Date(onStr):new Date();
+  if(dob>on){document.getElementById('age-main').textContent='Date is in the future';return;}
+
+  let years=on.getFullYear()-dob.getFullYear();
+  let months=on.getMonth()-dob.getMonth();
+  let days=on.getDate()-dob.getDate();
+  if(days<0){months--;const prev=new Date(on.getFullYear(),on.getMonth(),0);days+=prev.getDate();}
+  if(months<0){years--;months+=12;}
+
+  document.getElementById('age-main').textContent=`${years} yrs, ${months} mo, ${days} days`;
+
+  const totalDays=Math.floor((on-dob)/86400000);
+  document.getElementById('age-months').textContent=Math.floor(totalDays/30.44);
+  document.getElementById('age-weeks').textContent=Math.floor(totalDays/7);
+  document.getElementById('age-days').textContent=totalDays.toLocaleString();
+
+  // next birthday
+  let nextBd=new Date(on.getFullYear(),dob.getMonth(),dob.getDate());
+  if(nextBd<=on) nextBd=new Date(on.getFullYear()+1,dob.getMonth(),dob.getDate());
+  const daysToB=Math.ceil((nextBd-on)/86400000);
+  document.getElementById('age-next').textContent=daysToB===0?'Today! 🎂':daysToB+' days';
+
+  const days_names=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  document.getElementById('age-day').textContent=days_names[dob.getDay()]+', '+dob.toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});
+}
+
+// Set today as default for age-on
+document.getElementById('age-on').valueAsDate = new Date();
+
+/* ═══════════════════ NAV ═══════════════════ */
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+/* ═══════════════════ INIT ═══════════════════ */
+initUnits();
+</script>
+</body>
+</html>
